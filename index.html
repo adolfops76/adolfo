@@ -47,6 +47,21 @@
     .track { height: 7px; margin-top: 14px; overflow: hidden; background: #e7e6df; border-radius: 999px; }
     .bar { width: 0; height: 100%; background: var(--green); border-radius: inherit; transition: width .3s ease; }
 
+    .day-tabs { display: flex; gap: 8px; margin: 0 0 16px; padding: 4px 2px; overflow-x: auto; scrollbar-width: thin; }
+    .day-tab { flex: 0 0 auto; padding: 10px 15px; color: var(--muted); background: rgba(255,255,255,.58); border: 1px solid var(--line); border-radius: 999px; font: 650 .88rem/1 inherit; cursor: pointer; }
+    .day-tab.active { color: white; background: var(--green); border-color: var(--green); }
+
+    .toolbar { display: flex; justify-content: space-between; gap: 12px; align-items: center; margin-bottom: 14px; }
+    .viewing { color: var(--muted); font-size: .9rem; }
+    .action-button { min-height: 42px; padding: 0 16px; color: white; background: var(--green); border: 0; border-radius: 12px; font: 700 .88rem/1 inherit; cursor: pointer; box-shadow: 0 8px 20px rgba(65,106,82,.18); }
+    .action-button.secondary { color: var(--green); background: var(--green-soft); box-shadow: none; }
+    .action-button:disabled { opacity: .45; cursor: not-allowed; }
+
+    .add-form { display: grid; grid-template-columns: 1fr 210px auto; gap: 12px; margin: 0 0 18px; padding: 16px; background: rgba(255,255,255,.66); border: 1px solid rgba(255,255,255,.96); border-radius: 20px; box-shadow: 0 12px 32px rgba(42,48,40,.07); }
+    .add-form input[type="text"] { width: 100%; min-height: 44px; padding: 0 14px; color: var(--ink); background: rgba(247,245,239,.82); border: 1px solid #d4d4ca; border-radius: 12px; font: inherit; outline: none; }
+    .add-form input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(65,106,82,.13); }
+    .empty { padding: 48px 24px; color: var(--muted); text-align: center; }
+
     .board { overflow: hidden; background: var(--card); border: 1px solid rgba(255,255,255,.96); border-radius: 28px; box-shadow: var(--shadow); backdrop-filter: blur(14px); }
     .board-head, .task { display: grid; grid-template-columns: minmax(220px, 1fr) 210px 180px; column-gap: 18px; align-items: center; }
     .board-head { padding: 16px 24px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: .74rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
@@ -72,6 +87,8 @@
       .page { width: min(100% - 20px, 580px); padding-top: 38px; }
       header { grid-template-columns: 1fr; align-items: start; }
       .progress-card { width: 100%; }
+      .toolbar { align-items: flex-start; flex-direction: column; }
+      .add-form { grid-template-columns: 1fr; }
       .board-head { display: none; }
       .task { grid-template-columns: 1fr; gap: 12px; padding: 20px; }
       .task::before { display: none; }
@@ -95,6 +112,18 @@
       </section>
     </header>
 
+    <nav class="day-tabs" id="day-tabs" aria-label="Dias disponíveis"></nav>
+    <div class="toolbar">
+      <span class="viewing" id="viewing-day"></span>
+      <button class="action-button secondary" id="carry-button" type="button">Transferir pendentes para amanhã</button>
+    </div>
+
+    <form class="add-form" id="add-form">
+      <input id="new-task" type="text" placeholder="Nova atividade" aria-label="Nova atividade" required>
+      <input id="new-date" type="date" aria-label="Previsão de término da nova atividade">
+      <button class="action-button" type="submit">Incluir atividade</button>
+    </form>
+
     <section class="board" aria-label="Lista de tarefas">
       <div class="board-head"><span>Atividade</span><span>Status</span><span>Previsão de término</span></div>
       <div id="task-list"></div>
@@ -103,7 +132,7 @@
   </main>
 
   <script>
-    const tasks = [
+    const initialTasks = [
       "Doação do baú",
       "Compras de abastecimento",
       "Planilha financeira",
@@ -115,42 +144,149 @@
       "Alterar posição do modem Vivo"
     ];
     const statuses = ["A iniciar", "Em andamento", "Aguardando", "Concluído"];
-    const storageKey = "meu-dia-tarefas-v1";
-    const stored = JSON.parse(localStorage.getItem(storageKey) || "{}");
+    const oldStorageKey = "meu-dia-tarefas-v1";
+    const storageKey = "meu-dia-agenda-v2";
+    const localDate = date => {
+      const offset = date.getTimezoneOffset();
+      return new Date(date.getTime() - offset * 60000).toISOString().slice(0, 10);
+    };
+    const todayKey = localDate(new Date());
+    let activeDay = todayKey;
+    let agenda = JSON.parse(localStorage.getItem(storageKey) || "null");
+
+    if (!agenda) {
+      const oldData = JSON.parse(localStorage.getItem(oldStorageKey) || "{}");
+      agenda = { days: {} };
+      agenda.days[todayKey] = initialTasks.map((name, index) => ({
+        id: `${todayKey}-${index}-${Date.now()}`,
+        name,
+        status: oldData[index]?.status || "A iniciar",
+        date: oldData[index]?.date || ""
+      }));
+      saveAgenda();
+    }
+
+    if (!agenda.days[todayKey]) agenda.days[todayKey] = [];
 
     document.querySelector("#today").textContent = new Intl.DateTimeFormat("pt-BR", {
       weekday: "long", day: "numeric", month: "long"
     }).format(new Date());
 
     const list = document.querySelector("#task-list");
-    tasks.forEach((name, index) => {
-      const data = stored[index] || { status: "A iniciar", date: "" };
+    const tabs = document.querySelector("#day-tabs");
+    const form = document.querySelector("#add-form");
+    const carryButton = document.querySelector("#carry-button");
+
+    function dayLabel(key, long = false) {
+      const date = new Date(`${key}T12:00:00`);
+      if (key === todayKey && !long) return "Hoje";
+      return new Intl.DateTimeFormat("pt-BR", long
+        ? { weekday: "long", day: "numeric", month: "long", year: "numeric" }
+        : { day: "2-digit", month: "short" }).format(date);
+    }
+
+    function saveAgenda() {
+      localStorage.setItem(storageKey, JSON.stringify(agenda));
+    }
+
+    function renderTabs() {
+      tabs.innerHTML = "";
+      Object.keys(agenda.days).sort().forEach(key => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `day-tab${key === activeDay ? " active" : ""}`;
+        button.textContent = dayLabel(key);
+        button.setAttribute("aria-current", key === activeDay ? "date" : "false");
+        button.addEventListener("click", () => { activeDay = key; render(); });
+        tabs.appendChild(button);
+      });
+    }
+
+    function renderTasks() {
+      list.innerHTML = "";
+      const tasks = agenda.days[activeDay] || [];
+      const isPast = activeDay < todayKey;
+      if (!tasks.length) {
+        list.innerHTML = '<p class="empty">Nenhuma atividade neste dia.</p>';
+        updateProgress();
+        return;
+      }
+      tasks.forEach((data, index) => {
       const row = document.createElement("article");
       row.className = `task${data.status === "Concluído" ? " done" : ""}`;
       row.innerHTML = `
-        <div class="name-wrap"><span class="number">${String(index + 1).padStart(2, "0")}</span><span class="task-name">${name}</span></div>
-        <select aria-label="Status de ${name}">${statuses.map(status => `<option${status === data.status ? " selected" : ""}>${status}</option>`).join("")}</select>
-        <input type="date" value="${data.date}" aria-label="Previsão de término de ${name}">
+        <div class="name-wrap"><span class="number">${String(index + 1).padStart(2, "0")}</span><span class="task-name"></span></div>
+        <select aria-label="Status da atividade" ${isPast ? "disabled" : ""}>${statuses.map(status => `<option${status === data.status ? " selected" : ""}>${status}</option>`).join("")}</select>
+        <input type="date" value="${data.date || ""}" aria-label="Previsão de término" ${isPast ? "disabled" : ""}>
       `;
+      row.querySelector(".task-name").textContent = data.name;
       const select = row.querySelector("select");
       const date = row.querySelector("input");
       const save = () => {
-        stored[index] = { status: select.value, date: date.value };
-        localStorage.setItem(storageKey, JSON.stringify(stored));
+        data.status = select.value;
+        data.date = date.value;
+        saveAgenda();
         row.classList.toggle("done", select.value === "Concluído");
         updateProgress();
       };
       select.addEventListener("change", save);
       date.addEventListener("change", save);
       list.appendChild(row);
-    });
+      });
+      updateProgress();
+    }
 
     function updateProgress() {
-      const completed = [...document.querySelectorAll("select")].filter(item => item.value === "Concluído").length;
+      const tasks = agenda.days[activeDay] || [];
+      const completed = tasks.filter(item => item.status === "Concluído").length;
       document.querySelector("#progress-count").textContent = `${completed}/${tasks.length}`;
-      document.querySelector("#progress-bar").style.width = `${(completed / tasks.length) * 100}%`;
+      document.querySelector("#progress-bar").style.width = `${tasks.length ? (completed / tasks.length) * 100 : 0}%`;
     }
-    updateProgress();
+
+    function render() {
+      renderTabs();
+      renderTasks();
+      const isPast = activeDay < todayKey;
+      document.querySelector("#viewing-day").textContent = `${isPast ? "Consulta: " : "Planejamento: "}${dayLabel(activeDay, true)}`;
+      form.hidden = isPast;
+      carryButton.hidden = isPast;
+    }
+
+    form.addEventListener("submit", event => {
+      event.preventDefault();
+      const nameInput = document.querySelector("#new-task");
+      const dateInput = document.querySelector("#new-date");
+      const name = nameInput.value.trim();
+      if (!name) return;
+      if (!agenda.days[activeDay]) agenda.days[activeDay] = [];
+      agenda.days[activeDay].push({ id: `${activeDay}-${Date.now()}`, name, status: "A iniciar", date: dateInput.value });
+      saveAgenda();
+      nameInput.value = "";
+      dateInput.value = "";
+      render();
+      nameInput.focus();
+    });
+
+    carryButton.addEventListener("click", () => {
+      const source = agenda.days[activeDay] || [];
+      const pending = source.filter(item => item.status !== "Concluído");
+      if (!pending.length) return;
+      const next = new Date(`${activeDay}T12:00:00`);
+      next.setDate(next.getDate() + 1);
+      const nextKey = localDate(next);
+      if (!agenda.days[nextKey]) agenda.days[nextKey] = [];
+      const existing = new Set(agenda.days[nextKey].map(item => item.name.toLocaleLowerCase("pt-BR")));
+      pending.forEach(item => {
+        if (!existing.has(item.name.toLocaleLowerCase("pt-BR"))) {
+          agenda.days[nextKey].push({ ...item, id: `${nextKey}-${Date.now()}-${Math.random()}`, status: "A iniciar" });
+        }
+      });
+      saveAgenda();
+      activeDay = nextKey;
+      render();
+    });
+
+    render();
   </script>
 </body>
 </html>
