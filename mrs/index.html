@@ -8,16 +8,18 @@
   <title>MRS — Meu dia</title>
   <style>
     :root {
-      --ink: #20231f;
-      --muted: #72776f;
-      --paper: #f7f5ef;
-      --card: rgba(255, 255, 255, .78);
-      --line: #deddd4;
-      --green: #416a52;
-      --green-soft: #dce8df;
-      --amber: #b7732e;
-      --blue: #52718a;
-      --shadow: 0 22px 60px rgba(42, 48, 40, .10);
+      --ink: #18243f;
+      --muted: #657089;
+      --paper: #f3f5f9;
+      --card: rgba(255, 255, 255, .92);
+      --line: #d9deea;
+      --green: #273e77;
+      --green-soft: #e5e9f3;
+      --amber: #ffd600;
+      --blue: #273e77;
+      --navy: #1f315f;
+      --yellow: #ffd600;
+      --shadow: 0 22px 60px rgba(31, 49, 95, .14);
     }
 
     * { box-sizing: border-box; }
@@ -27,25 +29,43 @@
       min-height: 100vh;
       color: var(--ink);
       background:
-        radial-gradient(circle at 8% 10%, rgba(197, 216, 198, .75), transparent 28rem),
-        radial-gradient(circle at 92% 86%, rgba(231, 210, 177, .55), transparent 30rem),
-        var(--paper);
+        linear-gradient(135deg, rgba(255,214,0,.13) 0 18%, transparent 18% 100%),
+        radial-gradient(circle at 92% 12%, rgba(39,62,119,.13), transparent 30rem),
+        linear-gradient(180deg, #f7f8fb 0%, #eef1f7 100%);
       font: 16px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     .page { width: min(1240px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 72px; }
 
-    header { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: end; margin-bottom: 34px; }
-    .eyebrow { margin: 0 0 10px; color: var(--green); font-weight: 750; letter-spacing: .14em; text-transform: uppercase; font-size: .75rem; }
+    header {
+      position: relative;
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 28px;
+      align-items: end;
+      margin-bottom: 34px;
+      padding: 28px 30px;
+      color: #fff;
+      background:
+        linear-gradient(135deg, rgba(255,214,0,.98) 0 18%, transparent 18% 100%),
+        linear-gradient(118deg, #1f315f 0%, #2c4787 72%, #35579f 100%);
+      border-radius: 30px;
+      box-shadow: 0 24px 54px rgba(31,49,95,.25);
+      overflow: hidden;
+    }
+    .eyebrow { margin: 0 0 10px; color: rgba(255,255,255,.76); font-weight: 750; letter-spacing: .14em; text-transform: uppercase; font-size: .75rem; }
     h1 { margin: 0; font-family: Georgia, "Times New Roman", serif; font-size: clamp(3rem, 8vw, 6.3rem); font-weight: 500; letter-spacing: -.065em; line-height: .92; }
-    .subtitle { margin: 18px 0 0; max-width: 600px; color: var(--muted); }
+    .brand-row { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+    .mrs-logo { width: 178px; max-width: 44vw; height: auto; display: block; filter: drop-shadow(0 7px 14px rgba(0,0,0,.16)); }
+    .brand-tag { font-size: .78rem; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; color: rgba(255,255,255,.86); }
+    .subtitle { margin: 18px 0 0; max-width: 600px; color: rgba(255,255,255,.88); }
 
-    .progress-card { min-width: 190px; padding: 18px 20px; background: var(--card); border: 1px solid rgba(255,255,255,.95); border-radius: 22px; box-shadow: var(--shadow); backdrop-filter: blur(12px); }
+    .progress-card { min-width: 190px; padding: 18px 20px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.26); border-radius: 22px; box-shadow: 0 12px 28px rgba(0,0,0,.10); backdrop-filter: blur(12px); }
     .progress-top { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; }
     .progress-top strong { font-size: 1.45rem; }
-    .progress-top span { color: var(--muted); font-size: .85rem; }
-    .track { height: 7px; margin-top: 14px; overflow: hidden; background: #e7e6df; border-radius: 999px; }
-    .bar { width: 0; height: 100%; background: var(--green); border-radius: inherit; transition: width .3s ease; }
+    .progress-top span { color: rgba(255,255,255,.82); font-size: .85rem; }
+    .track { height: 7px; margin-top: 14px; overflow: hidden; background: rgba(255,255,255,.28); border-radius: 999px; }
+    .bar { width: 0; height: 100%; background: var(--yellow); border-radius: inherit; transition: width .3s ease; }
 
     .day-tabs { display: flex; gap: 8px; margin: 0 0 16px; padding: 4px 2px; overflow-x: auto; scrollbar-width: thin; }
     .day-tab { flex: 0 0 auto; padding: 10px 15px; color: var(--muted); background: rgba(255,255,255,.58); border: 1px solid var(--line); border-radius: 999px; font: 650 .88rem/1 inherit; cursor: pointer; }
@@ -102,9 +122,24 @@
   <main class="page">
     <header>
       <div>
+        <div class="brand-row">
+          <svg class="mrs-logo" viewBox="0 0 430 120" role="img" aria-label="MRS Logística">
+            <g fill="#ffd600">
+              <path d="M8 10h122l72 50-72 50H8l72-50z"/>
+              <path d="M120 10h122l72 50-72 50H120l72-50z"/>
+              <path d="M232 10h122l72 50-72 50H232l72-50z"/>
+            </g>
+            <g fill="#273e77" font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="62">
+              <text x="57" y="82">M</text>
+              <text x="177" y="82">R</text>
+              <text x="291" y="82">S</text>
+            </g>
+          </svg>
+          <span class="brand-tag">Rotina de trabalho</span>
+        </div>
         <p class="eyebrow" id="today">Hoje</p>
-        <h1>MRS.</h1>
-        <p class="subtitle">Minha rotina de trabalho na MRS — atividades, andamento e pendências.</p>
+        <h1>Meu dia.</h1>
+        <p class="subtitle">Atividades, andamento, prazos e entregas da rotina MRS.</p>
       </div>
       <section class="progress-card" aria-label="Progresso das tarefas">
         <div class="progress-top"><strong id="progress-count">0/9</strong><span>concluídas</span></div>
