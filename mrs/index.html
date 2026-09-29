@@ -33,7 +33,7 @@
       font: 16px/1.45 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
-    .page { width: min(1080px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 72px; }
+    .page { width: min(1240px, calc(100% - 32px)); margin: 0 auto; padding: 64px 0 72px; }
 
     header { display: grid; grid-template-columns: 1fr auto; gap: 28px; align-items: end; margin-bottom: 34px; }
     .eyebrow { margin: 0 0 10px; color: var(--green); font-weight: 750; letter-spacing: .14em; text-transform: uppercase; font-size: .75rem; }
@@ -57,13 +57,13 @@
     .action-button.secondary { color: var(--green); background: var(--green-soft); box-shadow: none; }
     .action-button:disabled { opacity: .45; cursor: not-allowed; }
 
-    .add-form { display: grid; grid-template-columns: 1fr 210px auto; gap: 12px; margin: 0 0 18px; padding: 16px; background: rgba(255,255,255,.66); border: 1px solid rgba(255,255,255,.96); border-radius: 20px; box-shadow: 0 12px 32px rgba(42,48,40,.07); }
-    .add-form input[type="text"] { width: 100%; min-height: 44px; padding: 0 14px; color: var(--ink); background: rgba(247,245,239,.82); border: 1px solid #d4d4ca; border-radius: 12px; font: inherit; outline: none; }
-    .add-form input:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(65,106,82,.13); }
+    .add-form { display: grid; grid-template-columns: 1fr 190px 190px auto; gap: 12px; margin: 0 0 18px; padding: 16px; background: rgba(255,255,255,.66); border: 1px solid rgba(255,255,255,.96); border-radius: 20px; box-shadow: 0 12px 32px rgba(42,48,40,.07); }
+    .add-form input[type="text"], .task input[type="text"] { width: 100%; min-height: 44px; padding: 0 14px; color: var(--ink); background: rgba(247,245,239,.82); border: 1px solid #d4d4ca; border-radius: 12px; font: inherit; outline: none; }
+    .add-form input:focus, .task input[type="text"]:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(65,106,82,.13); }
     .empty { padding: 48px 24px; color: var(--muted); text-align: center; }
 
     .board { overflow: hidden; background: var(--card); border: 1px solid rgba(255,255,255,.96); border-radius: 28px; box-shadow: var(--shadow); backdrop-filter: blur(14px); }
-    .board-head, .task { display: grid; grid-template-columns: minmax(220px, 1fr) 210px 180px; column-gap: 18px; align-items: center; }
+    .board-head, .task { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 190px 175px; column-gap: 18px; align-items: center; }
     .board-head { padding: 16px 24px; color: var(--muted); border-bottom: 1px solid var(--line); font-size: .74rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
     .task { min-height: 88px; padding: 16px 24px; border-bottom: 1px solid var(--line); transition: background .2s ease, opacity .2s ease; }
     .task:last-child { border-bottom: 0; }
@@ -74,10 +74,10 @@
     .number { display: grid; flex: 0 0 auto; place-items: center; width: 34px; height: 34px; color: var(--green); background: var(--green-soft); border-radius: 50%; font: 600 .85rem Georgia, serif; }
     .task-name { font-weight: 680; }
 
-    select, input[type="date"] {
+    select, input[type="date"], .task input[type="text"] {
       width: 100%; min-height: 44px; padding: 0 12px; color: var(--ink); background: rgba(247,245,239,.82); border: 1px solid #d4d4ca; border-radius: 12px; font: inherit; outline: none; transition: border .2s, box-shadow .2s;
     }
-    select:focus, input[type="date"]:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(65,106,82,.13); }
+    select:focus, input[type="date"]:focus, .task input[type="text"]:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(65,106,82,.13); }
     select { cursor: pointer; }
 
     .footer-note { display: flex; gap: 10px; align-items: center; margin: 18px 4px 0; color: var(--muted); font-size: .84rem; }
@@ -120,12 +120,20 @@
 
     <form class="add-form" id="add-form">
       <input id="new-task" type="text" placeholder="Nova atividade" aria-label="Nova atividade" required>
+      <input id="new-project" type="text" list="project-options" placeholder="Projeto / Frente" aria-label="Projeto ou frente">
+      <datalist id="project-options">
+        <option value="SNO1"></option>
+        <option value="IPA"></option>
+        <option value="Sinalização"></option>
+        <option value="Segregações"></option>
+        <option value="Geral"></option>
+      </datalist>
       <input id="new-date" type="date" aria-label="Previsão de término da nova atividade">
       <button class="action-button" type="submit">Incluir atividade</button>
     </form>
 
     <section class="board" aria-label="Lista de tarefas">
-      <div class="board-head"><span>Atividade</span><span>Status</span><span>Previsão de término</span></div>
+      <div class="board-head"><span>Atividade</span><span>Projeto / Frente</span><span>Status</span><span>Previsão de término</span></div>
       <div id="task-list"></div>
     </section>
     <p class="footer-note"><span class="saved-dot"></span><span>Alterações salvas automaticamente neste navegador.</span></p>
@@ -157,6 +165,16 @@
     }
 
     if (!agenda.days[todayKey]) agenda.days[todayKey] = [];
+
+    // Migração transparente para o histórico enriquecido.
+    Object.entries(agenda.days).forEach(([dayKey, tasks]) => {
+      tasks.forEach(item => {
+        if (!item.project) item.project = "";
+        if (!item.createdAt) item.createdAt = dayKey;
+        if (item.completedAt === undefined) item.completedAt = item.status === "Concluído" ? dayKey : "";
+      });
+    });
+    saveAgenda();
 
     document.querySelector("#today").textContent = new Intl.DateTimeFormat("pt-BR", {
       weekday: "long", day: "numeric", month: "long"
@@ -206,19 +224,30 @@
       row.className = `task${data.status === "Concluído" ? " done" : ""}`;
       row.innerHTML = `
         <div class="name-wrap"><span class="number">${String(index + 1).padStart(2, "0")}</span><span class="task-name"></span></div>
+        <input class="project-input" type="text" list="project-options" value="" aria-label="Projeto ou frente" ${isPast ? "disabled" : ""}>
         <select aria-label="Status da atividade" ${isPast ? "disabled" : ""}>${statuses.map(status => `<option${status === data.status ? " selected" : ""}>${status}</option>`).join("")}</select>
         <input type="date" value="${data.date || ""}" aria-label="Previsão de término" ${isPast ? "disabled" : ""}>
       `;
       row.querySelector(".task-name").textContent = data.name;
+      const project = row.querySelector(".project-input");
       const select = row.querySelector("select");
-      const date = row.querySelector("input");
+      const date = row.querySelector('input[type="date"]');
+      project.value = data.project || "";
       const save = () => {
+        const previousStatus = data.status;
+        data.project = project.value.trim();
         data.status = select.value;
         data.date = date.value;
+        if (data.status === "Concluído" && previousStatus !== "Concluído") {
+          data.completedAt = localDate(new Date());
+        } else if (data.status !== "Concluído" && previousStatus === "Concluído") {
+          data.completedAt = "";
+        }
         saveAgenda();
         row.classList.toggle("done", select.value === "Concluído");
         updateProgress();
       };
+      project.addEventListener("change", save);
       select.addEventListener("change", save);
       date.addEventListener("change", save);
       list.appendChild(row);
@@ -245,13 +274,23 @@
     form.addEventListener("submit", event => {
       event.preventDefault();
       const nameInput = document.querySelector("#new-task");
+      const projectInput = document.querySelector("#new-project");
       const dateInput = document.querySelector("#new-date");
       const name = nameInput.value.trim();
       if (!name) return;
       if (!agenda.days[activeDay]) agenda.days[activeDay] = [];
-      agenda.days[activeDay].push({ id: `${activeDay}-${Date.now()}`, name, status: "A iniciar", date: dateInput.value });
+      agenda.days[activeDay].push({
+        id: `${activeDay}-${Date.now()}`,
+        name,
+        project: projectInput.value.trim(),
+        status: "A iniciar",
+        date: dateInput.value,
+        createdAt: localDate(new Date()),
+        completedAt: ""
+      });
       saveAgenda();
       nameInput.value = "";
+      projectInput.value = "";
       dateInput.value = "";
       render();
       nameInput.focus();
@@ -268,7 +307,12 @@
       const existing = new Set(agenda.days[nextKey].map(item => item.name.toLocaleLowerCase("pt-BR")));
       pending.forEach(item => {
         if (!existing.has(item.name.toLocaleLowerCase("pt-BR"))) {
-          agenda.days[nextKey].push({ ...item, id: `${nextKey}-${Date.now()}-${Math.random()}`, status: "A iniciar" });
+          agenda.days[nextKey].push({
+            ...item,
+            id: `${nextKey}-${Date.now()}-${Math.random()}`,
+            status: "A iniciar",
+            completedAt: ""
+          });
         }
       });
       saveAgenda();
